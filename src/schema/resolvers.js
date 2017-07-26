@@ -43,7 +43,7 @@ module.exports = {
       return await userLoader.load(postedById);
     },
 
-    votes: async ({_id}, data, {dataloaders: {Votes}}) => {
+    votes: async ({_id}, data, {mongo: {Votes}}) => {
       return await Votes.find({linkId: _id}).toArray();
     }
   },
