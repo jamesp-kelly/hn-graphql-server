@@ -1,3 +1,5 @@
+const { ObjectID } = require('mongodb');
+
 module.exports = {
   Query: {
     allLinks: async (root, data, {mongo: {Links}}) => { //3rd item is the context obj that was passed to graphqlExpress()
@@ -7,7 +9,7 @@ module.exports = {
   Mutation: {
     createLink: async (root, data, {mongo: {Links}, user}) => {
       const newLink = Object.assign({postedById: user && user._id}, data);
-      const response = await Links.insert(data);
+      const response = await Links.insert(newLink);
       return Object.assign({id: response.insertedIds[0]}, newLink);
     },
     createUser: async (root, data, {mongo: {Users}}) => {
@@ -25,18 +27,43 @@ module.exports = {
         return {token: `token-${user.email}`, user};
       }
     },
-
+    createVote: async (root, data, {mongo: {Votes}, user}) => {
+      const newVote = {
+        userId: user && user._id,
+        linkId: new ObjectID(data.linkId)
+      };
+      const response = await Votes.insert(newVote);
+      return Object.assign({id: response.insertedIds[0]}, newVote);
+    }
   },
   Link: {
     id: root => root._id || root.id, //resolver updates from Mongo's ._id to our schema's .id
 
     postedBy: async ({postedById}, data, {mongo: {Users}}) => {
-      console.log('posted by is called');
       return await Users.findOne({_id: postedById});
+    },
+
+    votes: async ({_id}, data, {mongo: {Votes}}) => {
+      return await Votes.find({linkId: _id}).toArray();
     }
   },
 
   User: {
-    id: root => root._id || root.id
+    id: root => root._id || root.id,
+
+    votes: async ({_id}, data, {mongo: {Votes}}) => {
+      return await Votes.find({userId: _id}).toArray();
+    }
+  },
+
+  Vote: {
+    id: root => root._id || root.id,
+
+    user: async ({userId}, data, {mongo: {Users}}) => {
+      return await Users.findOne({_id: userId});
+    },
+    link: async ({linkId}, data, {mongo: {Links}}) => {
+      return await Links.findOne({_id: linkId});
+    }
   }
 };
