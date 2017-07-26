@@ -3,17 +3,26 @@ const bodyParser = require('body-parser'); //parses JSON requests
 const { graphqlExpress, graphiqlExpress } = require('apollo-server-express');
 const schema = require('./schema');
 const connectMongo = require('./mongo-connector');
+const { authenticate } = require('./authentication');
 
 const start = async () => {
 
   const mongo = await connectMongo();
   var app = express();
-  app.use('/graphql', bodyParser.json(), graphqlExpress({
-    context: {mongo},
-    schema
-  }));
+
+  const buildOptions = async (req, res) => {
+    const user = await authenticate(req, mongo.Users);
+    return {
+      context: {mongo, user}, //this context is passed to each resolver
+      schema
+    };
+  };
+  
+  app.use('/graphql', bodyParser.json(), graphqlExpress(buildOptions));
+
   app.use('/graphiql', graphiqlExpress({
-    endpointURL: '/graphql'
+    endpointURL: '/graphql',
+    passHeader: `'Authorization': 'bearer token-test@test.com'` 
   }));
 
   const PORT = 3000;
@@ -24,6 +33,3 @@ const start = async () => {
 }
 
 start();
-
-
-
